@@ -52,6 +52,7 @@ Tor SOCKS5 (127.0.0.1:9050)  ── ControlPort 9051: NEWNYM rotation ──► 
 | sudo | `NOPASSWD` for startup (autostart/RAM-disk/kill-switch require root) |
 | Path | Install the suite to `C:\tor-expert-bundle\tor_wsl_suite\` (hard-coded in `tools/*.cmd`, `_autostart.vbs` and `config/settings.py`) |
 | Note | Optionally open ORPort **8443** for incoming and outgoing connections in your router / Fritz!Box |
+| Note | You must setup IgnoredPorts 9050,9051,8118,8443 in your .wslconfig
 
 ---
 
