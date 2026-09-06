@@ -1,222 +1,201 @@
 <img width="1408" height="768" alt="Gemini_Generated_Image_ougi7wougi7wougi" src="https://github.com/user-attachments/assets/557d9e67-d01d-42e7-be70-640a696550ed" />
 
-# Cyberdeck_Tor_Anon_Jumper
-Cyberdeck Tor Suite ist ein anonymes Proxy- &amp; Security-System für Windows 11 und WSL2 (Kali Linux). Es startet einen flüchtigen Tor-Daemon in der RAM-Disk, routet den Netzwerkverkehr über Privoxy und sichert Verbindungen ab. Features umfassen nftables-Kill-Switch, DNS-Leak-Schutz, DPAPI-Passwort-Schutz sowie automatische Exit-IP-Rotation.
+# Cyberdeck Tor Anon Jumper
 
-# Cyberdeck Tor Suite (WSL2 / RAM-Disk Edition)
+*Cyberdeck Tor Suite (WSL2 / RAM-Disk Edition)* – Anonymous browsing setup for Windows 11 + WSL2 (Kali Linux). The suite launches a dedicated Tor daemon in the RAM-disk, routes all Windows traffic through Privoxy → Tor SOCKS5 (remote DNS) and secures it with an nftables kill-switch, DNS-leak protection and strict file- and password handling. The exit IP rotates automatically.
 
-Anonymes Browsing-Setup für **Windows 11 + WSL2 (Kali Linux)**. Die Suite startet einen
-eigenen Tor-Daemon in der RAM-Disk, leitet den gesamten Windows-Verkehr über Privoxy
-→ Tor SOCKS5 (Remote-DNS) und sichert das mit nftables-Kill-Switch, DNS-Leak-Schutz
-und striktem Datei- und Passwort-Handling. Die **Exit-IP rotiert automatisch**.
-
-> ⚠️ **Privacy-Tooling – kein Werkzeug zur Umgehung von System-/Netzwerkrichtlinien.**
-> Für den Einsatz in autorisierten/privacy-Szenarien und eigene Recherche gedacht.
+> ⚠️ **Privacy tooling – not a tool for bypassing system or network policies.** Intended for use in authorized/privacy scenarios and your own research.
 
 ---
 
-## Datenfluss (Architektur)
+## Data Flow (Architecture)
 
 ```
-Windows-Browser
-     │  Systemproxy (Registry) -> http://<WSL-IP>:8118
+Windows Browser
+     │  System proxy (Registry) -> http://<WSL-IP>:8118
      ▼
-Privoxy  (WSL, Port 8118, gehärtete Actions in user.action)
-     │  forward-socks5t  ->  Remote-DNS (kein DNS-Leak)
+Privoxy  (WSL, port 8118, hardened actions in user.action)
+     │  forward-socks5t  ->  remote DNS (no DNS leak)
      ▼
-Tor SOCKS5 (127.0.0.1:9050)  ── ControlPort 9051: NEWNYM-Rotation ──► Tor-Exit 🇪🇺
+Tor SOCKS5 (127.0.0.1:9050)  ── ControlPort 9051: NEWNYM rotation ──► Tor exit 🇪🇺
      │
-     ├─ DNSPort 5353  (Tor-DNS, resolved über /etc/resolv.conf)
-     └─ ORPort 8443   (Stealth Relay, kein publizierter Descriptor)
+     ├─ DNSPort 5353  (Tor DNS, resolved via /etc/resolv.conf)
+     └─ ORPort 8443   (stealth relay, no published descriptor)
 ```
 
-**Startreihenfolge (Root-Cause-bewusst):**
-Tor-Bootstrap **100 %** → DNS-Leak-Schutz + DNS-Redirect + nftables-Kill-Switch → erst dann Privoxy → Systemproxy. So muss der Browser nie durch eine noch nicht einsatzbereite Kette laufen.
+**Start order (root-cause aware):** Tor bootstrap **100 %** → DNS-leak protection + DNS redirect + nftables kill-switch → *then* Privoxy → system proxy. The browser never has to run through a chain that is not ready yet.
 
 ---
 
 ## Features
 
-- **Eigener Tor-Daemon** in einer 256 MB tmpfs-RAM-Disk (Configs + DataDirectory flüchtig)
-- **Automatische Exit-IP-Rotation** alle 120 s über `SIGNAL NEWNYM` (Steuerung via ControlPort)
-- **nftables-Kill-Switch** (isolierte Tabelle, `policy drop`): Outbound nur für die Tor-UID,
-  Loopback und Tor-DNS-Port 5353 – alles andere fällt durch
-- **DNS-Leak-Schutz** in zwei Ebenen: `/etc/resolv.conf` → `127.0.0.1` (mit `chattr +i`) **plus**
-  nftables-NAT-Redirect jedes Port-53-Pakets auf den Tor-DNSPort
-- **Privoxy-Härtung** per `user.action` (Referer, From, X-Real-IP, X-Forwarded-For,
-  If-Modified-Since werden entfernt), `forward-socks5t` erzwingt Remote-DNS
-- **Stealth-Relay**: Tor läuft als Relay mit Custom-ORPort `8443`, publiziert aber keinen
-  Descriptor (`PublishServerDescriptor 0`) – blockiert WSL2-NAT-Probleme auf hohe Ports
-- **Control-Passwort per Windows-DPAPI** – kein Klartext auf der Platte
-- Systemproxy in Win 11 wird mit Privoxy auf Linux verbunden und aktiviert, also nicht wundern :)
-- Sauberer **Graceful Shutdown**: Firewall-Regeln, Kill-Switch, DNS-Redirect, resolv.conf
-  und Systemproxy werden restlos zurückgesetzt, RAM-Disk unmountet
-- **Windows-Firewall-Regeln** (inbound 8118 Privoxy + 8443 Relay) werden per PowerShell-Interop gesetzt und wieder entfernt
+- Dedicated Tor daemon in a **256 MB tmpfs RAM-disk** (configs + DataDirectory are volatile)
+- Automatic **exit-IP rotation every 120 s** via `SIGNAL NEWNYM` (controlled through the Tor control port)
+- **nftables kill-switch** (isolated table, `policy drop`): outbound traffic only for the Tor UID; loopback and Tor-DNS-port 5353 are explicit exceptions – everything else is dropped
+- **DNS-leak protection on two layers:** `/etc/resolv.conf` → `127.0.0.1` (with `chattr +i`) **plus** an nftables NAT redirect that forces every port-53 packet to the Tor DNSPort
+- **Privoxy hardening** via `user.action` (Referer, From, X-Real-IP, X-Forwarded-For, If-Modified-Since are stripped), `forward-socks5t` enforces remote DNS
+- **Stealth relay:** Tor runs as a relay with custom ORPort `8443` but publishes **no descriptor** (`PublishServerDescriptor 0`) – avoids WSL2-NAT problems on high ports
+- **Control-password handled via Windows DPAPI** – no plaintext on disk
+- Windows 11's system proxy is wired to Privoxy (running in Linux) and enabled automatically – don't be surprised :)
+- Clean **graceful shutdown**: firewall rules, kill-switch, DNS redirect, resolv.conf and system proxy are fully reset, RAM-disk is unmounted
+- **Windows firewall rules** (inbound 8118 Privoxy + 8443 relay) are set via PowerShell interop and removed again on shutdown
 
 ---
 
-## Voraussetzungen
+## Requirements
 
-| Komponente | Anforderung |
+| Component | Requirement |
 |---|---|
-| Betriebssystem | Windows 10/11 mit WSL2 + **Kali Linux**-Distro (Name `kali-linux`) |
-| Pakete in WSL | `tor`, `privoxy`, `nftables`, `curl`, `python3-pip` |
-| Python | 3.10+, `stem`, 'requests'|
-| sudo | `NOPASSWD` für den Start (Autostart/RAM-Disk/Kill-Switch brauchen Root) |
-| Pfad | Suite installieren nach `C:\tor-expert-bundle\tor_wsl_suite\` (in `tools/*.cmd`, `_autostart.vbs` und `config/settings.py` hart verankert) |
-| Hinweis | ggf. im Router oder in der FritzBox ORPort 8443 für eingehende und ausgehende Verbindungen öffnen |
+| OS | Windows 10/11 with WSL2 + **Kali Linux** distro (name `kali-linux`) |
+| Packages in WSL | `tor`, `privoxy`, `nftables`, `curl`, `python3-pip` |
+| Python | 3.10+, `stem`, `requests` |
+| sudo | `NOPASSWD` for startup (autostart/RAM-disk/kill-switch require root) |
+| Path | Install the suite to `C:\tor-expert-bundle\tor_wsl_suite\` (hard-coded in `tools/*.cmd`, `_autostart.vbs` and `config/settings.py`) |
+| Note | Optionally open ORPort **8443** for incoming and outgoing connections in your router / Fritz!Box |
 
 ---
 
 ## Installation
 
-### 1. WSL2 + Kali einrichten
+### 1. Set up WSL2 + Kali
 
 ```powershell
 wsl --install -d kali-linux
 ```
 
-### 2. Pakete in Kali
+### 2. Packages inside Kali
 
 ```bash
 sudo apt update
 sudo apt install -y tor privoxy nftables curl python3-pip
-python3 -m pip install -r requirements.txt   # enthält: stem
-# falls requirements.txt leer ist:
+python3 -m pip install -r requirements.txt   # contains: stem
+# if requirements.txt is empty:
 python3 -m pip install stem requests
 ```
 
-### 3. Suite ablegen
+### 3. Place the suite
 
-Ordner nach `C:\tor-expert-bundle\tor_wsl_suite\` kopieren (Windows-Seite).
+Copy the folder to `C:\tor-expert-bundle\tor_wsl_suite\` (Windows side).
 
-### 4. sudo NOPASSWD (für `start_suite.sh` aus Autostart/VBS ohne TTY)
+### 4. sudo NOPASSWD (so `start_suite.sh` works from autostart/VBS without a TTY)
 
 ```bash
 echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/cyberdeck
 sudo chmod 440 /etc/sudoers.d/cyberdeck
 ```
 
-### 5. Autostart bei Windows-Anmeldung (optional)
+### 5. Autostart on Windows logon (optional)
 
 ```powershell
-# Windows PowerShell (als Nutzer)
+# Windows PowerShell (as the user)
 powershell -ExecutionPolicy Bypass -File C:\tor-expert-bundle\tor_wsl_suite\tools\install_autostart.ps1
-# Entfernen mit:
+# Remove it with:
 powershell -ExecutionPolicy Bypass -File C:\tor-expert-bundle\tor_wsl_suite\tools\install_autostart.ps1 -Remove
 ```
 
-`install_autostart.ps1` legt einen unsichtbaren VBS-Launcher im Startup-Ordner ab; der VBS
-wartet bis WSL bereit ist und ruft `start_suite.sh` auf (mit 3 Retries).
+`install_autostart.ps1` drops an invisible VBS launcher into the Startup folder; the VBS waits until WSL is ready and then calls `start_suite.sh` (with 3 retries).
 
 ---
 
 ## Start / Stop / Status
 
-| Aktion | Befehl |
+| Action | Command |
 |---|---|
 | Start (Windows) | `C:\tor-expert-bundle\tor_wsl_suite\tools\start_suite.cmd` |
 | Start (WSL) | `cd /mnt/c/tor-expert-bundle/tor_wsl_suite && bash tools/start_suite.sh` |
-| Manueller Start (Foreground) | `cd /mnt/c/tor-expert-bundle/tor_wsl_suite && sudo python3 main.py` |
+| Manual start (foreground) | `cd /mnt/c/tor-expert-bundle/tor_wsl_suite && sudo python3 main.py` |
 | Stop (graceful, Windows) | `C:\tor-expert-bundle\tor_wsl_suite\tools\stop_suite.cmd` |
 | Stop (WSL) | `bash tools/stop_suite.sh` |
 
-Status-/IP-Tool (Windows PowerShell, fragt die Suite WSL-intern ab):
+Status/IP tool (Windows PowerShell, queries the suite internally from within WSL):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File C:\tor-expert-bundle\tor_wsl_suite\tools\tor_status.ps1
-# sofort neue Exit-IP erzwingen:
+# force a new exit IP immediately:
 powershell -ExecutionPolicy Bypass -File C:\tor-expert-bundle\tor_wsl_suite\tools\tor_status.ps1 -Rotate
 ```
 
-Verifikation gegencheck.torproject.org **ohne** Zusatztext:
+Verify against check.torproject.org **without** any additional text:
 
 ```bash
 curl -x http://<WSL-IP>:8118 https://check.torproject.org/api/ip
-# -> {"IsTor":true,"IP":"..."} – Exit-IP wechselt mit jeder Rotation
+# -> {"IsTor":true,"IP":"..."} – the exit IP changes with every rotation
 ```
 
 ---
 
-## Konfiguration
+## Configuration
 
-Alle zentralen Werte liegen in `config/settings.py`:
+All central values live in `config/settings.py`:
 
-| Parameter | Wert | Bedeutung |
+| Parameter | Value | Meaning |
 |---|---|---|
-| `IP_ROTATION_INTERVAL_SEC` | 120 | Rotation alle 120 s |
-| `PRIVOXY_PORT` | 8118 | HTTP-Proxy der Suite (bindet `0.0.0.0`) |
-| `TOR_SOCKS_PORT` / `TOR_CONTROL_PORT` | 9050 / 9051 | SOCKS5 bzw. ControlPort (Passwort-geschützt) |
-| `TOR_DNS_PORT` | 5353 | Tor-DNSPort für den Leak-Schutz |
-| `TOR_OR_PORT` | 8443 | Stealth-Relay ORPort |
-| `EUROPEAN_EXIT_NODES` | EU-Länderliste | `ExitNodes`-Einschränkung (torrc) |
+| `IP_ROTATION_INTERVAL_SEC` | 120 | rotation every 120 s |
+| `PRIVOXY_PORT` | 8118 | HTTP proxy of the suite (binds `0.0.0.0`) |
+| `TOR_SOCKS_PORT` / `TOR_CONTROL_PORT` | 9050 / 9051 | SOCKS5 resp. control port (password protected) |
+| `TOR_DNS_PORT` | 5353 | Tor DNSPort used for leak protection |
+| `TOR_OR_PORT` | 8443 | stealth-relay ORPort |
+| `EUROPEAN_EXIT_NODES` | EU country list | `ExitNodes` restriction (torrc) |
 | `RAMDISK_MOUNT_POINT` | `/mnt/tor_ramdisk` | 256 MB tmpfs |
 
-**Templates** (werden in die RAM-Disk gerendert):
+**Templates** (rendered into the RAM-disk):
+
 - `config/torrc.template` → `/mnt/tor_ramdisk/torrc`
-- `config/privoxy.conf.template` → `/mnt/tor_ramdisk/privoxy.conf` (enthält `confdir /etc/privoxy` für Fehlerseiten-Templates und `actionsfile …/user.action`)
+- `config/privoxy.conf.template` → `/mnt/tor_ramdisk/privoxy.conf` (contains `confdir /etc/privoxy` for error-page templates and the `actionsfile …/user.action`)
 - `config/privoxy-user.action.template` → `/mnt/tor_ramdisk/user.action`
-  (einzeiliger Action-Block, URL-Muster auf eigener Zeile – nur diese Actions sind gegen Privoxy 4.2.0 verifiziert!)
+  (single-line action block, URL pattern on its own line – only these actions are verified against Privoxy 4.2.0!)
 
 ---
 
-## Sicherheits-Details
+## Security Details
 
-1. **RAM-Disk** (`core/ramdisk.py`): torrc, privoxy.conf, `user.action`, Tor-Daten liegen
-   ausschließlich im tmpfs – beim Shutdown wird alles unmountet und vernichtet.
-2. **Kill-Switch** (`core/security.py`): eigene nftables-Tabelle, `policy drop`; Ausnahmen:
-   Loopback, `ct state established,related accept` (Antworten an den Windows-Client!),
-   UDP/TCP 5353, `skuid <tor-uid>`. **Tor läuft als Systemuser `debian-tor`** (via `User debian-tor` in torrc), damit die UID-Regel greift.
-3. **DNS-Zwang** (`setup_dns_redirect`): jede DNS-Anfrage wird per NAT-Hook auf den
-   Tor-DNSPort `5353` umgeleitet – ein Leak über Clearnet-Resolver ist ausgeschlossen.
-4. **ControlPasswort**: zufällig erzeugt, nur als Windows-DPAPI-Chiffrat
-   (`control_password.enc`) auf Platte; Tor bekommt den S2K-Hash in die torrc.
-5. **Firewall**: Windows-inbound-Regeln für 8118/8443 werden beim Start erzeugt und beim
-   Shutdown wieder entfernt.
-6. **Härtungs-Actions** (Privoxy): referer/filter, From bzw. X-Real-IP/X-Forwarded-For und
-   If-Modified-Since werden entfernt. **Hinweis:** Actions wirken nur auf unverschlüsseltes
-   HTTP – HTTPS/CONNECT ist für Privoxy intransparent.
+1. **RAM-disk** (`core/ramdisk.py`): torrc, privoxy.conf, `user.action` and Tor data live exclusively in the tmpfs – everything is unmounted and destroyed on shutdown.
+2. **Kill-switch** (`core/security.py`): dedicated nftables table, `policy drop`; exceptions: loopback, `ct state established,related accept` (answers to the Windows client!), UDP/TCP 5353, `skuid <tor-uid>`. Tor runs as the system user `debian-tor` (via `User debian-tor` in torrc) so the UID rule applies.
+3. **Forced DNS** (`setup_dns_redirect`): every DNS query is re-routed via a NAT hook to the Tor DNSPort `5353` – a leak over clearnet resolvers is ruled out.
+4. **Control password**: randomly generated, only stored as a Windows-DPAPI ciphertext on disk (`control_password.enc`); Tor receives the S2K hash in the torrc.
+5. **Firewall**: Windows inbound rules for `8118`/`8443` are created on start and removed on shutdown.
+6. **Hardening actions (Privoxy)**: referer/filter, From resp. X-Real-IP/X-Forwarded-For and If-Modified-Since are stripped. **Note:** actions only apply to unencrypted HTTP – HTTPS/CONNECT is transparent to Privoxy.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Ursache / Lösung |
+| Symptom | Cause / Fix |
 |---|---|
-| „Kein Internet, obwohl Tor bootstrapped“ | Kill-Switch verwirft Proxy-Antworten → Zeile `ct state established,related accept` in `setup_nftables_killswitch()` prüfen; Suite einmal sauber neu starten |
-| `500 Could not load template file forwarding-failed` | `confdir /etc/privoxy` fehlt in der privoxy.conf → Template neu generieren (Steht im Template; Fehlerseiten kommen aus `/etc/privoxy/templates`) |
-| Bootstrap bleibt bei 30–50 % / `NOROUTE` | Ohne `PublishServerDescriptor 0` fliegt Tor auf hohe ORPorts (9001/8500/9030), die in WSL2-NAT nicht erreichbar sind → Zeile ist zwingend |
-| Port-Konflikt 9050/9051 | `tor.service` auf Debian ist ein No-Op; verwaiste Prozesse räumt `TorServiceManager.cleanup_dangling_processes()` (`pkill -9 tor`) |
-| Windows-PowerShell-Interop hängt | Firewall-Aufrufe haben 15-s-Timeout (fabrik im `security.py`); Proxy-/Status-Aufrufe nutzen denselben Powershell-Pfad |
-| Für den echten Firefox-UA (Kompromiss) | `hide-user-agent` wird von Privoxy 4.2.0 ignoriert, `clobber-user-agent` verhindert den Start → Firefox `about:config → privacy.resistFingerprinting = true` |
+| "No internet, although Tor bootstrapped" | The kill-switch drops proxy answers → check the line `ct state established,related accept` in `setup_nftables_killswitch()`; restart the suite once cleanly |
+| `500 Could not load template file forwarding-failed` | `confdir /etc/privoxy` is missing in the privoxy.conf → regenerate the template (it is in the template; error pages come from `/etc/privoxy/templates`) |
+| Bootstrap stays at 30–50 % / `NOROUTE` | Without `PublishServerDescriptor 0`, Tor tries high ORPorts (9001/8500/9030) which are unreachable in WSL2-NAT → that line is mandatory |
+| Port conflict 9050/9051 | `tor.service` on Debian is a no-op; orphaned processes are cleaned by `TorServiceManager.cleanup_dangling_processes()` (`pkill -9 tor`) |
+| Windows PowerShell interop hangs | Firewall calls have a 15 s timeout (see `security.py`); proxy/status calls use the same PowerShell path |
+| Real Firefox user-agent (compromise) | `hide-user-agent` is silently ignored by Privoxy 4.2.0 and `clobber-user-agent` even prevents startup → Firefox `about:config → privacy.resistFingerprinting = true` |
 
-Logs: `logs/tor_suite.log` (Hauptlog), `logs/tor_direct.log`, `logs/privoxy_direct.log`, `tools/start_suite.sh` schreibt nach `logs/suite_start.log`.
+Logs: `logs/tor_suite.log` (main log), `logs/tor_direct.log`, `logs/privoxy_direct.log`; `tools/start_suite.sh` writes to `logs/suite_start.log`.
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 tor_wsl_suite/
-├── main.py                        # Orchestrierung (Start 0–10, Graceful Shutdown)
+├── main.py                        # orchestration (start 0–10, graceful shutdown)
 ├── config/
-│   ├── settings.py                # Ports, Pfade, Intervall, Exit-Nodes, DPAPI-Passwort
-│   ├── torrc.template             # Tor-Config (RAM-Disk)
-│   ├── privoxy.conf.template      # Privoxy-Config (forward-socks5t, actionsfile, confdir)
-│   └── privoxy-user.action.template  # echte Härtungs-Actions
+│   ├── settings.py                # ports, paths, interval, exit nodes, DPAPI password
+│   ├── torrc.template             # Tor config (RAM-disk)
+│   ├── privoxy.conf.template      # Privoxy config (forward-socks5t, actionsfile, confdir)
+│   └── privoxy-user.action.template  # real hardening actions
 ├── core/
-│   ├── ramdisk.py                 # tmpfs-Mount/-Unmount
-│   ├── tor_manager.py             # Tor-Start, Bootstrap-Wait (stem), NEWNYM-Rotation
-│   ├── privoxy_manager.py         # Config-Generierung + Privoxy-Start
-│   ├── security.py                # Kill-Switch, DNS-Zwang, Firewall, Rechte
-│   ├── win_proxy.py               # Windows-Systemproxy (Registry via PowerShell)
-│   ├── service_manager.py         # System-Tor stoppen, Altprozesse freiräumen
-│   ├── system_check.py            # Root-/Binär-Prüfungen, WSL-IP
-│   └── dpapi_control.py           # DPAPI-Chiffrat des Control-Passworts
+│   ├── ramdisk.py                 # tmpfs mount/unmount
+│   ├── tor_manager.py             # Tor start, bootstrap wait (stem), NEWNYM rotation
+│   ├── privoxy_manager.py         # config generation + Privoxy start
+│   ├── security.py                # kill-switch, forced DNS, firewall, permissions
+│   ├── win_proxy.py               # Windows system proxy (registry via PowerShell)
+│   ├── service_manager.py         # stop system Tor, free orphaned processes
+│   ├── system_check.py            # root/binary checks, WSL IP
+│   └── dpapi_control.py           # DPAPI ciphertext of the control password
 ├── tools/
-│   ├── start_suite.sh / stop_suite.sh     # idempotenter Daemon-Start/-Stop (WSL)
-│   ├── start_suite.cmd / stop_suite.cmd   # Windows-Wrapper
-│   ├── install_autostart.ps1              # Autostart (VBS-Launcher)
-│   ├── tor_status.ps1 + tor_status_helper.py   # Status-/IP-Tool
-└── _autostart.vbs                 # versteckter Launcher (im Startup-Ordner)
+│   ├── start_suite.sh / stop_suite.sh     # idempotent daemon start/stop (WSL)
+│   ├── start_suite.cmd / stop_suite.cmd   # Windows wrappers
+│   ├── install_autostart.ps1              # autostart (VBS launcher)
+│   ├── tor_status.ps1 + tor_status_helper.py   # status/IP tool
+└── _autostart.vbs                 # hidden launcher (in the Startup folder)
 ```
