@@ -62,7 +62,7 @@ Tor-Bootstrap **100 %** → DNS-Leak-Schutz + DNS-Redirect + nftables-Kill-Switc
 | Python | 3.10+, `stem` |
 | sudo | `NOPASSWD` für den Start (Autostart/RAM-Disk/Kill-Switch brauchen Root) |
 | Pfad | Suite installieren nach `C:\tor-expert-bundle\tor_wsl_suite\` (in `tools/*.cmd`, `_autostart.vbs` und `config/settings.py` hart verankert) |
-| ggf. im Router oder in der FritzBox ORPort 8443 für eingehende und ausgehende Verbindungen öffnen |
+| Hinweis | ggf. im Router oder in der FritzBox ORPort 8443 für eingehende und ausgehende Verbindungen öffnen |
 
 ---
 
