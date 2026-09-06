@@ -61,7 +61,7 @@ Tor-Bootstrap **100 %** → DNS-Leak-Schutz + DNS-Redirect + nftables-Kill-Switc
 |---|---|
 | Betriebssystem | Windows 10/11 mit WSL2 + **Kali Linux**-Distro (Name `kali-linux`) |
 | Pakete in WSL | `tor`, `privoxy`, `nftables`, `curl`, `python3-pip` |
-| Python | 3.10+, `stem` |
+| Python | 3.10+, `stem`, 'requests'|
 | sudo | `NOPASSWD` für den Start (Autostart/RAM-Disk/Kill-Switch brauchen Root) |
 | Pfad | Suite installieren nach `C:\tor-expert-bundle\tor_wsl_suite\` (in `tools/*.cmd`, `_autostart.vbs` und `config/settings.py` hart verankert) |
 | Hinweis | ggf. im Router oder in der FritzBox ORPort 8443 für eingehende und ausgehende Verbindungen öffnen |
@@ -83,7 +83,7 @@ sudo apt update
 sudo apt install -y tor privoxy nftables curl python3-pip
 python3 -m pip install -r requirements.txt   # enthält: stem
 # falls requirements.txt leer ist:
-python3 -m pip install stem
+python3 -m pip install stem requests
 ```
 
 ### 3. Suite ablegen
