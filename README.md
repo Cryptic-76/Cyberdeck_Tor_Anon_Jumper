@@ -46,6 +46,7 @@ Tor-Bootstrap **100 %** → DNS-Leak-Schutz + DNS-Redirect + nftables-Kill-Switc
 - **Stealth-Relay**: Tor läuft als Relay mit Custom-ORPort `8443`, publiziert aber keinen
   Descriptor (`PublishServerDescriptor 0`) – blockiert WSL2-NAT-Probleme auf hohe Ports
 - **Control-Passwort per Windows-DPAPI** – kein Klartext auf der Platte
+- Systemproxy in Win 11 wird mit Privoxy auf Linux verbunden und aktiviert, also nicht wundern :)
 - Sauberer **Graceful Shutdown**: Firewall-Regeln, Kill-Switch, DNS-Redirect, resolv.conf
   und Systemproxy werden restlos zurückgesetzt, RAM-Disk unmountet
 - **Windows-Firewall-Regeln** (inbound 8118 Privoxy + 8443 Relay) werden per PowerShell-Interop gesetzt und wieder entfernt
@@ -61,6 +62,7 @@ Tor-Bootstrap **100 %** → DNS-Leak-Schutz + DNS-Redirect + nftables-Kill-Switc
 | Python | 3.10+, `stem` |
 | sudo | `NOPASSWD` für den Start (Autostart/RAM-Disk/Kill-Switch brauchen Root) |
 | Pfad | Suite installieren nach `C:\tor-expert-bundle\tor_wsl_suite\` (in `tools/*.cmd`, `_autostart.vbs` und `config/settings.py` hart verankert) |
+| ggf. im Router oder in der FritzBox ORPort 8443 für eingehende und ausgehende Verbindungen öffnen |
 
 ---
 
